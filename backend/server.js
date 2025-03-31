@@ -2,7 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import cors from 'cors';
-import axios from 'axios';  // To send file to the model
+import axios from 'axios';
 import FormData from 'form-data';
 import fs from 'fs';
 import connectDB from './config/db.js';
@@ -39,16 +39,20 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
+    const { language } = req.body; // Get language selection from frontend
+    const transcriptionPort = language === "Hindi" ? 9000 : 8000;
+
     // Save to MongoDB
     const newAudio = new Audio({ filename: req.file.filename, path: req.file.path });
     await newAudio.save();
 
-    // Send file to transcription model
+    // Send file to appropriate transcription model
     const formData = new FormData();
     formData.append('file', fs.createReadStream(req.file.path));
 
-    const response = await axios.post('http://127.0.0.1:8000/transcribe', formData, {
+    const response = await axios.post(`http://127.0.0.1:${transcriptionPort}/transcribe`, formData, {
       headers: { ...formData.getHeaders() },
+      timeout: 120000,
     });
 
     const transcription = response.data.transcription;
